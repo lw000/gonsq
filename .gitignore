@@ -6,6 +6,6 @@
 .idea/modules.xml
 .idea/thriftCompiler.xml
 .idea/vcs.xml
-nsq_test.exe
+gonsq.exe
 /consumer/consumer.exe
 /producer/producer.exe

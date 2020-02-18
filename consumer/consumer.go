@@ -2,53 +2,98 @@ package main
 
 import (
 	"log"
+	"os"
 	"time"
 
 	"github.com/nsqio/go-nsq"
 )
 
-type nsqHandler struct {
-	nsqConsumer      *nsq.Consumer
+type testHandler struct {
 	messagesReceived int
 }
 
-//处理消息
-func (nh *nsqHandler) HandleMessage(msg *nsq.Message) error {
+type test1Handler struct {
+	messagesReceived int
+}
+
+type test2Handler struct {
+	messagesReceived int
+}
+
+// 处理消息
+func (nh *testHandler) HandleMessage(msg *nsq.Message) error {
 	nh.messagesReceived++
-	log.Printf("receive ID:%s, addr:%s, message:%s\n", msg.ID, msg.NSQDAddress, string(msg.Body))
+	body := string(msg.Body)
+	log.Printf("%d >> receive ID:%s, addr:%s, message:%s\n", nh.messagesReceived, msg.ID, msg.NSQDAddress, body)
 	return nil
 }
 
-func initConsumer(topic, channel, addr string) error {
-	cfg := nsq.NewConfig()
-	cfg.LookupdPollInterval = 100 * time.Millisecond
-	c, err := nsq.NewConsumer(topic, channel, cfg)
+// 处理消息
+func (nh *test1Handler) HandleMessage(msg *nsq.Message) error {
+	nh.messagesReceived++
+	body := string(msg.Body)
+	log.Printf("%d >> receive ID:%s, addr:%s, message:%s\n", nh.messagesReceived, msg.ID, msg.NSQDAddress, body)
+	return nil
+}
+
+// 处理消息
+func (nh *test2Handler) HandleMessage(msg *nsq.Message) error {
+	nh.messagesReceived++
+	body := string(msg.Body)
+	log.Printf("%d >> receive ID:%s, addr:%s, message:%s\n", nh.messagesReceived, msg.ID, msg.NSQDAddress, body)
+	return nil
+}
+
+func createConsumer(addr, topic, channel string) error {
+	config := nsq.NewConfig()
+	config.HeartbeatInterval = time.Second * time.Duration(10)
+	config.LookupdPollInterval = 100 * time.Millisecond
+	c, err := nsq.NewConsumer(topic, channel, config)
 	if err != nil {
 		log.Println("init Consumer NewConsumer error:", err)
 		return err
 	}
 
-	handler := &nsqHandler{nsqConsumer: c}
+	c.SetLogger(log.New(os.Stderr, "", log.Flags()), nsq.LogLevelError)
+	var handler nsq.Handler
+	switch topic {
+	case "test":
+		handler = &testHandler{}
+	case "test1":
+		handler = &test1Handler{}
+	case "test2":
+		handler = &test2Handler{}
+	}
 	c.AddHandler(handler)
 
 	err = c.ConnectToNSQLookupd(addr)
 	if err != nil {
-		log.Println("init Consumer ConnectToNSQLookupd error:", err)
+		log.Println("Consumer ConnectToNSQLookupd error:", err)
 		return err
 	}
 
 	return nil
 }
 
-func main() {
-	err := initConsumer("test1", "test-channel1", "127.0.0.1:4161")
-	if err != nil {
-		log.Fatal("init Consumer error")
+var (
+	cfg = []struct {
+		addr    string
+		topic   string
+		channel string
+	}{
+		{"127.0.0.1:4161", "test1", "test-channel1"},
+		{"127.0.0.1:4161", "test2", "test-channel2"},
+		{"127.0.0.1:4161", "test", "test-channel2"},
 	}
+)
 
-	err = initConsumer("test2", "test-channel2", "127.0.0.1:4161")
-	if err != nil {
-		log.Fatal("init Consumer error")
+func main() {
+	var err error
+	for _, c := range cfg {
+		err = createConsumer(c.addr, c.topic, c.channel)
+		if err != nil {
+			log.Fatal("init consumer error")
+		}
 	}
 
 	select {}
