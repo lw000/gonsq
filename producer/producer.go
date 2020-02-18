@@ -54,14 +54,14 @@ func main() {
 	defer producer1.Stop()
 	defer producer2.Stop()
 
-	//读取控制台输入
-	//reader := bufio.NewReader(os.Stdin)
+	// 读取控制台输入
+	// reader := bufio.NewReader(os.Stdin)
 
 	count := 0
 	for {
-		//fmt.Print("please say:")
-		//data, _, _ := reader.ReadLine()
-		//command := string(data)
+		// fmt.Print("please say:")
+		// data, _, _ := reader.ReadLine()
+		// command := string(data)
 		command := UUID()
 		log.Println(command)
 		if command == "stop" {

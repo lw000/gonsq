@@ -7,3 +7,5 @@
 .idea/thriftCompiler.xml
 .idea/vcs.xml
 nsq_test.exe
+/consumer/consumer.exe
+/producer/producer.exe
