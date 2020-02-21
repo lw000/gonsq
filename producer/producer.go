@@ -10,7 +10,7 @@ import (
 )
 
 type nsqProducer struct {
-	q *nsq.Producer
+	producer *nsq.Producer
 }
 
 func New(addr string) (*nsqProducer, error) {
@@ -26,7 +26,7 @@ func New(addr string) (*nsqProducer, error) {
 }
 
 func (np *nsqProducer) Publish(topic, message string) error {
-	err := np.q.Publish(topic, []byte(message))
+	err := np.producer.Publish(topic, []byte(message))
 	if err != nil {
 		log.Println("nsq public error:", err)
 		return nil
@@ -35,14 +35,11 @@ func (np *nsqProducer) Publish(topic, message string) error {
 }
 
 func (np *nsqProducer) Stop() {
-	np.q.Stop()
+	np.producer.Stop()
 }
 
 func UUID() string {
-	u1, err := uuid.NewV4()
-	if err != nil {
-		return ""
-	}
+	u1 := uuid.NewV4()
 	return u1.String()
 }
 
@@ -95,6 +92,6 @@ func main() {
 			}
 		}
 
-		time.Sleep(time.Millisecond * time.Duration(1000))
+		time.Sleep(time.Millisecond * time.Duration(100))
 	}
 }

@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"os"
+	"os/signal"
 	"time"
 
 	"github.com/nsqio/go-nsq"
@@ -48,13 +49,13 @@ func createConsumer(addr, topic, channel string) error {
 	config := nsq.NewConfig()
 	config.HeartbeatInterval = time.Second * time.Duration(10)
 	config.LookupdPollInterval = 100 * time.Millisecond
-	c, err := nsq.NewConsumer(topic, channel, config)
+	consumer, err := nsq.NewConsumer(topic, channel, config)
 	if err != nil {
 		log.Println("init Consumer NewConsumer error:", err)
 		return err
 	}
+	consumer.SetLogger(log.New(os.Stderr, "", log.Flags()), nsq.LogLevelError)
 
-	c.SetLogger(log.New(os.Stderr, "", log.Flags()), nsq.LogLevelError)
 	var handler nsq.Handler
 	switch topic {
 	case "test":
@@ -64,9 +65,8 @@ func createConsumer(addr, topic, channel string) error {
 	case "test2":
 		handler = &test2Handler{}
 	}
-	c.AddHandler(handler)
-
-	err = c.ConnectToNSQLookupd(addr)
+	consumer.AddHandler(handler)
+	err = consumer.ConnectToNSQLookupd(addr)
 	if err != nil {
 		log.Println("Consumer ConnectToNSQLookupd error:", err)
 		return err
@@ -95,6 +95,7 @@ func main() {
 			log.Fatal("init consumer error")
 		}
 	}
-
-	select {}
+	c := make(chan os.Signal)
+	signal.Notify(c, os.Interrupt, os.Kill)
+	log.Println(<-c)
 }
