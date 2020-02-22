@@ -1,12 +1,10 @@
 package main
 
 import (
+	"github.com/nsqio/go-nsq"
 	"log"
 	"os"
-	"os/signal"
 	"time"
-
-	"github.com/nsqio/go-nsq"
 )
 
 type testHandler struct {
@@ -45,14 +43,14 @@ func (nh *test2Handler) HandleMessage(msg *nsq.Message) error {
 	return nil
 }
 
-func createConsumer(addr, topic, channel string) error {
+func createConsumerNSQD(addr, topic, channel string) (*nsq.Consumer, error) {
 	config := nsq.NewConfig()
 	config.HeartbeatInterval = time.Second * time.Duration(10)
-	config.LookupdPollInterval = 100 * time.Millisecond
+	config.LookupdPollInterval = 1000 * time.Millisecond
 	consumer, err := nsq.NewConsumer(topic, channel, config)
 	if err != nil {
 		log.Println("init Consumer NewConsumer error:", err)
-		return err
+		return nil, err
 	}
 	consumer.SetLogger(log.New(os.Stderr, "", log.Flags()), nsq.LogLevelError)
 
@@ -66,36 +64,12 @@ func createConsumer(addr, topic, channel string) error {
 		handler = &test2Handler{}
 	}
 	consumer.AddHandler(handler)
-	err = consumer.ConnectToNSQLookupd(addr)
+	// err = consumer.ConnectToNSQLookupd(addr)
+	err = consumer.ConnectToNSQD(addr)
 	if err != nil {
 		log.Println("Consumer ConnectToNSQLookupd error:", err)
-		return err
+		return nil, err
 	}
 
-	return nil
-}
-
-var (
-	cfg = []struct {
-		addr    string
-		topic   string
-		channel string
-	}{
-		{"127.0.0.1:4161", "test1", "test-channel1"},
-		{"127.0.0.1:4161", "test2", "test-channel2"},
-		{"127.0.0.1:4161", "test", "test-channel2"},
-	}
-)
-
-func main() {
-	var err error
-	for _, c := range cfg {
-		err = createConsumer(c.addr, c.topic, c.channel)
-		if err != nil {
-			log.Fatal("init consumer error")
-		}
-	}
-	c := make(chan os.Signal)
-	signal.Notify(c, os.Interrupt, os.Kill)
-	log.Println(<-c)
+	return consumer, nil
 }

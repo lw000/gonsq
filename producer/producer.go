@@ -1,10 +1,10 @@
 package main
 
 import (
+	"context"
 	"github.com/nsqio/go-nsq"
 	"github.com/satori/go.uuid"
 	"log"
-	"math/rand"
 	"os"
 	"time"
 )
@@ -13,7 +13,7 @@ type nsqProducer struct {
 	producer *nsq.Producer
 }
 
-func New(addr string) (*nsqProducer, error) {
+func NewProducer(addr string) (*nsqProducer, error) {
 	config := nsq.NewConfig()
 	config.HeartbeatInterval = time.Second * time.Duration(10)
 	producer, err := nsq.NewProducer(addr, config)
@@ -38,60 +38,22 @@ func (np *nsqProducer) Stop() {
 	np.producer.Stop()
 }
 
-func UUID() string {
+func (np *nsqProducer) Message() string {
 	u1 := uuid.NewV4()
 	return u1.String()
 }
 
-func main() {
-	strIP1 := "127.0.0.1:4150"
-	strIP2 := "127.0.0.1:4152"
-	producer1, err := New(strIP1)
-	if err != nil {
-		log.Fatal("init producer1 error:", err)
-	}
-	defer producer1.Stop()
-
-	producer2, err := New(strIP2)
-	if err != nil {
-		log.Fatal("init producer2 error:", err)
-	}
-	defer producer2.Stop()
-
-	// 读取控制台输入
-	// reader := bufio.NewReader(os.Stdin)
-
-	rand.Seed(time.Now().Unix())
-
+func runProducer(ctx context.Context, producer *nsqProducer, topic string, message string) {
+	t := time.NewTicker(time.Millisecond * time.Duration(100))
 	for {
-		// log.Println("please say:")
-		// data, _, _ := reader.ReadLine()
-		// msg := string(data)
-		// if msg == "stop" {
-		// 	fmt.Println("stop producer!")
-		// 	return
-		// }
-
-		index := rand.Intn(3)
-		// msg := UUID()
-		switch index {
-		case 0:
-			err := producer1.Publish("test", "test")
+		select {
+		case <-t.C:
+			err := producer.Publish(topic, message)
 			if err != nil {
-				log.Fatal("producer1 Publish error:", err)
+				log.Println("Publish error:", err)
 			}
-		case 1:
-			err := producer2.Publish("test1", "test1")
-			if err != nil {
-				log.Fatal("producer1 Publish error:", err)
-			}
-		default:
-			err := producer2.Publish("test2", "test2")
-			if err != nil {
-				log.Fatal("producer1 Publish error:", err)
-			}
+		case <-ctx.Done():
+			return
 		}
-
-		time.Sleep(time.Millisecond * time.Duration(100))
 	}
 }
